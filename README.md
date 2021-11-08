@@ -7,7 +7,7 @@
 
 ### installing Jenkins
 
-Access Jenkins on selected IP on VagrantFile and port 8080, as Jenkins runs on this port by default. Selected IP can be found on VagrantFile in the section below:
+Access Jenkins browser with selected IP on VagrantFile and port 8080, as Jenkins runs on this port by default. Selected IP can be found on VagrantFile in the section below:
 
   `# using a specific IP.
   config.vm.network "private_network", ip: "<IP>"`
