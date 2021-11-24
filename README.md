@@ -64,7 +64,7 @@ Note that to get access password, simply run the command with sudo permission on
 
     Adicionar passo no build: Executar Shell
 
-#  Script to up the container with env file and test the app:
+###  Script to up the container with env file and test the app:
     #!/bin/sh
 
     # Up the container
@@ -80,3 +80,37 @@ Note that to get access password, simply run the command with sudo permission on
     if [ $exit_code -ne 0 ]; then
         exit 1
     fi
+
+### Instal plugin: Parameterized Trigger 
+
+### Modify Job to start with 2 parameters:
+    # General:
+    This build is parameterized with 2 string params
+        Nome: image
+        Valor padrão: <seu-usuario-no-dockerhub>/django_todolist_image_build
+
+        Nome: DOCKER_HOST
+        Valor padrão: tcp://127.0.0.1:2376
+
+### At build step: Build / Publish Docker Image
+    # Change image name to: <seu-usuario-no-dockerhub>/django_todolist_image_build
+    # Check: Push Image and configure its credentials at dockerhub
+
+### Change test job image to: ${image}
+    docker run -d -p 82:8000 -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -v /var/lib/jenkins/workspace/jenkins-todo-list-principal/to_do/.env:/usr/src/app/to_do/.env --name=todo-list-teste ${image}
+
+### Create slack app: alura-jenkins.slack.com
+    URL base
+    Integration Token
+
+### Install slack plugin: Gerenciar Jenkins > Gerenciar Plugins > Disponíveis: Slack Notification
+    # Configure jenkins: Gerenciar Jenkins > Configuraçao o sistema > Global Slack Notifier Settings
+    # Slack compatible app URL (optional): <Url do Jenkins app no canal do Slack>
+    # Integration Token Credential ID : ADD > Jenkins > Secret Text
+        # Secret: <Token do Jenkins app no seu canal do Slack>
+        # ID: slack-token
+    # Channel or Slack ID: pipeline-todolist
+
+### Notifications work:
+    Job: todo-list-dev will be done via Jenkinsfile
+    Job: todo-list-production: Post-build Actions > Slack Notifications: Notify Success e Notify Every Failure
