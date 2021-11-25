@@ -114,3 +114,61 @@ Note that to get access password, simply run the command with sudo permission on
 ### Notifications work:
     Job: todo-list-dev will be done via Jenkinsfile
     Job: todo-list-production: Post-build Actions > Slack Notifications: Notify Success e Notify Every Failure
+
+
+### New Job: todo-list-desenvolvimento:
+    # Type: Pipeline
+# Parametrized build with 2 String parameters:
+    Name: image
+    Standard value: - Empty cause will receive its value from latest job
+
+    Name: DOCKER_HOST
+    Standard value: tcp://127.0.0.1:2376
+
+    # PIPELINE CREATED, CHANGE <dev file id> TO VALUE ON Config File Management PLUGIN
+    pipeline {
+        environment {
+            dockerImage = "${image}"
+        }
+        agent any
+
+        stages {
+            stage('Loading development ENV') {
+                steps {
+                    configFileProvider([configFile(fileId: '<dev file id>', variable: 'env')]) {
+                        sh 'cat $env > .env'
+                    }
+                }
+            }
+            stage('Stopping old container') {
+                steps {
+                    script {
+                        try {
+                            sh 'docker rm -f django-todolist-dev'
+                        } catch (Exception e) {
+                            sh "echo $e"
+                        }
+                    }
+                }
+            }        
+            stage('Upping new container') {
+                steps {
+                    script {
+                        try {
+                            sh 'docker run -d -p 81:8000 -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -v /var/lib/jenkins/workspace/jenkins-todo-list-desenvolvimento/.env:/usr/src/app/to_do/.env --name=django-todolist-dev ' + dockerImage + ':latest'
+                        } catch (Exception e) {
+                            slackSend (color: 'error', message: "[ FALHA ] Não foi possivel subir o container - ${BUILD_URL} em ${currentBuild.duration}s", tokenCredentialId: 'slack-token')
+                            sh "echo $e"
+                            currentBuild.result = 'ABORTED'
+                            error('Erro')
+                        }
+                    }
+                }
+            }
+            stage('Notifying user') {
+                steps {
+                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.33.10:81/ ', tokenCredentialId: 'slack-token')
+                }
+            }
+        }
+    }
