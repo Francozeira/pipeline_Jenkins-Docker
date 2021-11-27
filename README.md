@@ -172,3 +172,106 @@ Note that to get access password, simply run the command with sudo permission on
             }
         }
     }
+### Create production job:
+    Name: todo-list-producao
+    Tyoe: Freestyle
+    # This build is parameterized with 2 String Builds:
+        Name: image
+        Standard value: - Empty due to receive the value from previous job.
+
+        Name: DOCKER_HOST
+        Standard value: tcp://127.0.0.1:2376
+
+    # Build Environment > Provide configuration files
+        File: .env-prod
+        Target: .env
+
+    # Build > Execute shell
+        #!/bin/sh
+        { 
+            docker run -d -p 80:8000 -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -v /var/lib/jenkins/workspace/todo-list-producao/.env:/usr/src/app/to_do/.env --name=django-todolist-prod $image:latest
+
+        } || { # catch
+            docker rm -f django-todolist-prod
+            docker run -d -p 80:8000 -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -v /var/lib/jenkins/workspace/todo-list-producao/.env:/usr/src/app/to_do/.env --name=django-todolist-prod $image:latest
+        }    
+
+# Post build actions for the 3 jobs
+
+    Job: jenkins-todo-list-principal > Ações de pós-build > Trigger parameterized buld on other projects
+    Projects to build: todo-list-desenvolvimento
+    # Add parameters > Predefined parameters
+        image=${image}
+
+    Job: todo-list-desenvolvimento
+
+    pipeline {
+        environment {
+            dockerImage = "${image}"
+        }
+        agent any
+
+        stages {
+            stage('Loading development ENV') {
+                steps {
+                    configFileProvider([configFile(fileId: '2ed9697c-45fc-4713-a131-53bdbeea2ae6', variable: 'env')]) {
+                        sh 'cat $env > .env'
+                    }
+                }
+            }
+            stage('Stopping old container') {
+                steps {
+                    script {
+                        try {
+                            sh 'docker rm -f django-todolist-dev'
+                        } catch (Exception e) {
+                            sh "echo $e"
+                        }
+                    }
+                }
+            }        
+            stage('Upping new container') {
+                steps {
+                    script {
+                        try {
+                            sh 'docker run -d -p 81:8000 -v /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock -v /var/lib/jenkins/workspace/todo-list-desenvolvimento/.env:/usr/src/app/to_do/.env --name=django-todolist-dev ' + dockerImage + ':latest'
+                        } catch (Exception e) {
+                            slackSend (color: 'error', message: "[ FALHA ] Não foi possivel subir o container - ${BUILD_URL} em ${currentBuild.duration}s", tokenCredentialId: 'slack-token')
+                            sh "echo $e"
+                            currentBuild.result = 'ABORTED'
+                            error('Erro')
+                        }
+                    }
+                }
+            }
+            stage('Notifying user') {
+                steps {
+                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.33.10:81/ ', tokenCredentialId: 'slack-token')
+                }
+            }
+            stage ('Deploy in production?') {
+                steps {
+                    script {
+                        slackSend (color: 'warning', message: "To aplly changes in production, access [10 minutes window time]: ${JOB_URL}", tokenCredentialId: 'slack-token')
+                        timeout(time: 10, unit: 'MINUTES') {
+                            input(id: "Deploy Gate", message: "Production deploy?", ok: 'Deploy')
+                        }
+                    }
+                }
+            }
+            stage (deploy) {
+                steps {
+                    script {
+                        try {
+                            build job: 'todo-list-producao', parameters: [[$class: 'StringParameterValue', name: 'image', value: dockerImage]]
+                        } catch (Exception e) {
+                            slackSend (color: 'error', message: "[ FALHA ] Não foi possivel subir o container em producao - ${BUILD_URL}", tokenCredentialId: 'slack-token')
+                            sh "echo $e"
+                            currentBuild.result = 'ABORTED'
+                            error('Erro')
+                        }
+                    }
+                }
+            }
+        }
+    }
