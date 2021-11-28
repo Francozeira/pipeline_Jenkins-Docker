@@ -275,3 +275,20 @@ Note that to get access password, simply run the command with sudo permission on
             }
         }
     }
+
+### Upping container with Sonarcube
+  On DevOps machine (Vagrant): docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
+
+    # Access: http://192.168.33.10:9000
+    User: admin
+    Password: admin
+    Name: jenkins-todolist
+        Provide a token: jenkins-todolist e anotar o seu token
+        Run analysis on your project > Other (JS, Python, PHP, ...) > Linux > django-todo-list
+        # Copie o shell script fornecido
+
+sonar-scanner \
+  -Dsonar.projectKey=jenkins-todolist \
+  -Dsonar.sources=. \
+  -Dsonar.host.url=http://192.168.33.10:9000 \
+  -Dsonar.login=<your token>
