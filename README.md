@@ -167,7 +167,7 @@ Note that to get access password, simply run the command with sudo permission on
             }
             stage('Notifying user') {
                 steps {
-                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.33.10:81/ ', tokenCredentialId: 'slack-token')
+                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.56.4:81/ ', tokenCredentialId: 'slack-token')
                 }
             }
         }
@@ -246,7 +246,7 @@ Note that to get access password, simply run the command with sudo permission on
             }
             stage('Notifying user') {
                 steps {
-                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.33.10:81/ ', tokenCredentialId: 'slack-token')
+                    slackSend (color: 'good', message: '[ Sucesso ] O novo build esta disponivel em: http://192.168.56.4:81/ ', tokenCredentialId: 'slack-token')
                 }
             }
             stage ('Deploy in production?') {
@@ -279,16 +279,33 @@ Note that to get access password, simply run the command with sudo permission on
 ### Upping container with Sonarcube
   On DevOps machine (Vagrant): docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
 
-    # Access: http://192.168.33.10:9000
+    # Access: http://192.168.56.4:9000
     User: admin
     Password: admin
     Name: jenkins-todolist
-        Provide a token: jenkins-todolist e anotar o seu token
+        Provide a token: jenkins-todolist and copy your token
         Run analysis on your project > Other (JS, Python, PHP, ...) > Linux > django-todo-list
-        # Copie o shell script fornecido
 
-sonar-scanner \
-  -Dsonar.projectKey=jenkins-todolist \
-  -Dsonar.sources=. \
-  -Dsonar.host.url=http://192.168.33.10:9000 \
-  -Dsonar.login=<your token>
+### Create a Coverage job with name: todo-list-sonarqube
+    # Source code management de código fonte > Git
+        git: git@github.com:alura-cursos/jenkins-todo-list.git (Select same credentials)
+        branch: master
+        Pool SCM: * * * * *
+        Delete workspace before build starts
+        Execute Script:
+
+    # Build > Add build step > Execute Shell
+
+        #!/bin/bash
+        # Downloading Sonarqube
+        wget https://s3.amazonaws.com/caelum-online-public/1110-jenkins/05/sonar-scanner-cli-3.3.0.1492-linux.zip
+
+        # UNzipping scanner
+        unzip sonar-scanner-cli-3.3.0.1492-linux.zip
+
+        # Running Scanner
+        ./sonar-scanner-3.3.0.1492-linux/bin/sonar-scanner   -X \
+          -Dsonar.projectKey=jenkins-todolist \
+          -Dsonar.sources=. \
+          -Dsonar.host.url=http://192.168.56.4:9000 \
+          -Dsonar.login=<seu token>
